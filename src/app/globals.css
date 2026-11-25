@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/*
+ * CasePilot design tokens.
+ * A restrained, paper-and-ink palette suited to legal work: warm neutral
+ * canvas, white working surfaces, a deep navy accent, and a dedicated
+ * severity scale used consistently across badges, counts and evidence.
+ */
+:root {
+  --canvas: #f6f5f1;
+  --surface: #ffffff;
+  --surface-muted: #f1f0eb;
+  --ink: #16181d;
+  --ink-muted: #5b6070;
+  --ink-subtle: #8a8f9c;
+  --line: #e3e1da;
+  --line-strong: #cfccc2;
+  --accent: #1f3a6d;
+  --accent-hover: #182f59;
+  --accent-soft: #e8edf6;
+  --focus: #3b63b8;
+
+  --sev-critical: #9f1d2c;
+  --sev-critical-soft: #fbe9eb;
+  --sev-high: #b4471a;
+  --sev-high-soft: #fcefe6;
+  --sev-medium: #946200;
+  --sev-medium-soft: #fbf3dc;
+  --sev-low: #1f6a8a;
+  --sev-low-soft: #e5f2f7;
+  --sev-info: #4f5566;
+  --sev-info-soft: #eef0f3;
+
+  --ok: #1f7a4d;
+  --ok-soft: #e6f4ec;
+  --warn: #946200;
+  --warn-soft: #fbf3dc;
+  --danger: #a3231f;
+  --danger-soft: #fbeaea;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-focus: var(--focus);
+  --color-sev-critical: var(--sev-critical);
+  --color-sev-critical-soft: var(--sev-critical-soft);
+  --color-sev-high: var(--sev-high);
+  --color-sev-high-soft: var(--sev-high-soft);
+  --color-sev-medium: var(--sev-medium);
+  --color-sev-medium-soft: var(--sev-medium-soft);
+  --color-sev-low: var(--sev-low);
+  --color-sev-low-soft: var(--sev-low-soft);
+  --color-sev-info: var(--sev-info);
+  --color-sev-info-soft: var(--sev-info-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-source-serif);
+  --shadow-card: 0 1px 2px rgb(22 24 29 / 0.04), 0 1px 1px rgb(22 24 29 / 0.03);
+  --shadow-raised: 0 4px 16px rgb(22 24 29 / 0.08), 0 1px 3px rgb(22 24 29 / 0.06);
+}
+
+html {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: #d9e2f3;
+}
+
+/* Highlight applied to evidence passages in the text viewer. */
+.evidence-highlight {
+  background: linear-gradient(transparent 55%, #f7e3a1 55%);
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

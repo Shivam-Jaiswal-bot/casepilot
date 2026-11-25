@@ -38,3 +38,15 @@ build/
 
 # Claude local settings
 .claude/settings.local.json
+
+# Next.js / TypeScript
+/out/
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+
+# CasePilot local document storage (contains uploaded contracts)
+/storage/
+
+# Evaluation run artifacts (regenerate with `npm run eval`)
+/evals/results/
