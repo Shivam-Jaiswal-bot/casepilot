@@ -27,11 +27,16 @@ export function NavLinks({ activePath }: { activePath: string | null }) {
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              active ? "bg-surface text-ink shadow-(--shadow-card) ring-1 ring-line" : "text-ink-muted hover:bg-surface-muted hover:text-ink",
+              "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150",
+              active ? "bg-chrome-raised text-chrome-ink" : "text-chrome-muted hover:bg-chrome-raised/60 hover:text-chrome-ink",
             )}
           >
-            <Icon className="size-4" aria-hidden />
+            {/* active marker: a brass rule on the inner edge (desktop) */}
+            <span
+              aria-hidden
+              className={cn("absolute top-2 bottom-2 left-0 hidden w-[3px] rounded-r-full bg-brass transition-opacity lg:block", active ? "opacity-100" : "opacity-0")}
+            />
+            <Icon className={cn("size-4 transition-colors", active ? "text-chrome-ink" : "text-chrome-muted group-hover:text-chrome-ink")} aria-hidden />
             {label}
           </Link>
         );

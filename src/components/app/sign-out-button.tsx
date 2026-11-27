@@ -4,8 +4,9 @@ import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/cn";
 
-export function SignOutButton() {
+export function SignOutButton({ className }: { className?: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   return (
@@ -18,7 +19,10 @@ export function SignOutButton() {
         router.replace("/login");
         router.refresh();
       }}
-      className="rounded-md p-1.5 text-ink-subtle hover:bg-surface-muted hover:text-ink disabled:opacity-50"
+      className={cn(
+        "rounded-md p-1.5 text-chrome-muted transition-colors hover:bg-chrome-raised hover:text-chrome-ink disabled:opacity-50",
+        className,
+      )}
       aria-label="Sign out"
       title="Sign out"
     >

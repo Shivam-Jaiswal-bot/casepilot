@@ -1,15 +1,14 @@
-import { ArrowLeft, CircleDashed, Loader, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Building2, CalendarDays, FileSearch, ListChecks, Loader, ShieldCheck, TriangleAlert, UserRound } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import { AutoRefresh } from "@/components/app/auto-refresh";
 import { FindingsList } from "@/components/risk/findings-list";
+import { CoverageGrid, RiskSummary } from "@/components/risk/risk-overview";
 import { StartAnalysisForm } from "@/components/risk/start-analysis";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { ButtonLink } from "@/components/ui/button";
-import { SEVERITY_DOT, SEVERITY_LABEL } from "@/components/ui/domain-badges";
-import { Alert, Badge, Card, CardHeader, Disclaimer, EmptyState, PageHeader, Skeleton } from "@/components/ui/primitives";
-import { cn } from "@/lib/cn";
-import { CLAUSE_CATEGORY_LABELS, RISK_SEVERITIES, type CategoryCoverage } from "@/lib/domain";
+import { Alert, Card, CardHeader, Disclaimer, EmptyState, MetaList, PageHeader, Skeleton } from "@/components/ui/primitives";
+import { CLAUSE_CATEGORIES, CLAUSE_CATEGORY_LABELS } from "@/lib/domain";
 import { formatDateTime, pluralize } from "@/lib/format";
 import { requirePageUser } from "@/server/auth/session";
 import { loadOwnedDocument } from "@/server/documents/load-owned-document";
@@ -20,18 +19,26 @@ export const metadata: Metadata = { title: "Risk analysis" };
 export default function RiskPage({ params }: PageProps<"/documents/[documentId]/risk">) {
   return (
     <div className="mx-auto max-w-6xl">
-      <Suspense fallback={<Skeleton className="h-[60vh] w-full" />}>
+      <Suspense fallback={<RiskSkeleton />}>
         <RiskContent params={params} />
       </Suspense>
     </div>
   );
 }
 
-const OUTCOME_META: Record<CategoryCoverage["outcome"], { label: string; tone: "ok" | "neutral" | "danger" }> = {
-  IDENTIFIED: { label: "Identified", tone: "ok" },
-  NOT_IDENTIFIED: { label: "Not identified", tone: "neutral" },
-  ERROR: { label: "Not evaluated", tone: "danger" },
-};
+function RiskSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-label="Loading risk analysis">
+      <Skeleton className="h-4 w-72" />
+      <Skeleton className="h-10 w-96" />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Skeleton className="h-80 rounded-xl lg:col-span-2" />
+        <Skeleton className="h-80 rounded-xl" />
+      </div>
+      <Skeleton className="h-96 rounded-xl" />
+    </div>
+  );
+}
 
 async function RiskContent({ params }: Pick<PageProps<"/documents/[documentId]/risk">, "params">) {
   const user = await requirePageUser();
@@ -39,18 +46,29 @@ async function RiskContent({ params }: Pick<PageProps<"/documents/[documentId]/r
   const doc = await loadOwnedDocument(user.id, documentId);
   const latest = await getLatestAnalysisForDocument(user.id, doc.id);
 
-  const back = (
-    <Link href={`/documents/${doc.id}`} className="mb-3 inline-flex items-center gap-1 text-sm text-ink-muted hover:text-ink">
-      <ArrowLeft className="size-3.5" aria-hidden /> {doc.title}
-    </Link>
+  const crumbs = (
+    <Breadcrumbs
+      items={[
+        { label: "Documents", href: "/documents" },
+        { label: doc.title, href: `/documents/${doc.id}` },
+        { label: "Risk analysis" },
+      ]}
+    />
+  );
+  const workspaceLink = (
+    <ButtonLink href={`/documents/${doc.id}`} variant="secondary">
+      <FileSearch aria-hidden /> Open workspace
+    </ButtonLink>
   );
 
   if (doc.status !== "COMPLETED") {
     return (
       <>
-        {back}
-        <PageHeader title="Risk analysis" eyebrow={doc.title} />
-        <Alert kind="info">This document must finish processing before it can be analysed.</Alert>
+        {crumbs}
+        <PageHeader eyebrow={doc.title} title="Contract risk analysis" />
+        <Alert kind="info" title="Not ready yet">
+          This document must finish processing before it can be analysed.
+        </Alert>
       </>
     );
   }
@@ -58,12 +76,34 @@ async function RiskContent({ params }: Pick<PageProps<"/documents/[documentId]/r
   if (!latest) {
     return (
       <>
-        {back}
-        <PageHeader title="Contract risk analysis" eyebrow={doc.title} description="CasePilot reviews 15 clause categories, retrieves the supporting text for each, and flags risks only where it can quote the contract." />
-        <Card className="max-w-2xl p-6">
-          <StartAnalysisForm documentId={doc.id} />
-          <Disclaimer className="mt-4" />
-        </Card>
+        {crumbs}
+        <PageHeader
+          eyebrow={doc.title}
+          title="Contract risk analysis"
+          description="CasePilot reviews each clause category, retrieves the supporting text, and flags a risk only where it can quote the contract."
+          actions={workspaceLink}
+        />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+          <Card className="p-6 lg:col-span-3">
+            <h2 className="font-serif text-xl font-semibold text-ink">Run a risk review</h2>
+            <p className="mt-1.5 mb-5 text-sm leading-relaxed text-ink-muted">
+              Tell CasePilot whose side you are on to get severities from that party&apos;s point of view. Leave it blank for a neutral review.
+            </p>
+            <StartAnalysisForm documentId={doc.id} />
+            <Disclaimer className="mt-5 border-t border-line pt-4" />
+          </Card>
+          <Card className="lg:col-span-2">
+            <CardHeader icon={<ListChecks />} title="What is reviewed" description={`${CLAUSE_CATEGORIES.length} clause categories`} />
+            <ul className="grid grid-cols-1 gap-x-4 gap-y-2 px-5 py-4 text-[0.8125rem] text-ink-muted sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              {CLAUSE_CATEGORIES.map((c) => (
+                <li key={c} className="flex items-center gap-2">
+                  <span className="size-1 rounded-full bg-brass" aria-hidden />
+                  {CLAUSE_CATEGORY_LABELS[c]}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
       </>
     );
   }
@@ -74,16 +114,31 @@ async function RiskContent({ params }: Pick<PageProps<"/documents/[documentId]/r
   if (running || analysis.status === "FAILED") {
     return (
       <>
-        {back}
-        <PageHeader title="Contract risk analysis" eyebrow={doc.title} />
+        {crumbs}
+        <PageHeader eyebrow={doc.title} title="Contract risk analysis" actions={workspaceLink} />
         <AutoRefresh active={running} />
         <Card>
-          <EmptyState
-            icon={running ? <Loader className="size-5 animate-spin" /> : <TriangleAlert className="size-5" />}
-            title={running ? "Analysis in progress" : "Analysis failed"}
-            description={running ? "Reviewing each clause category against retrieved evidence. This page updates automatically." : (analysis.errorMessage ?? "The analysis could not be completed.")}
-            action={running ? undefined : <StartAnalysisForm documentId={doc.id} label="Try again" compact />}
-          />
+          {running ? (
+            <div className="px-6 py-14 text-center">
+              <div className="mx-auto flex size-11 items-center justify-center rounded-xl border border-line bg-surface shadow-sm">
+                <Loader className="size-5 animate-spin text-accent" aria-hidden />
+              </div>
+              <h2 className="mt-4 font-serif text-xl font-semibold text-ink">{analysis.status === "QUEUED" ? "Analysis queued" : "Analysis in progress"}</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-muted">
+                Reviewing {CLAUSE_CATEGORIES.length} clause categories against retrieved evidence. This usually takes a minute or two; the page updates automatically.
+              </p>
+              <div className="mx-auto mt-6 h-1 max-w-xs overflow-hidden rounded-full bg-surface-sunken" aria-hidden>
+                <div className="h-full w-1/3 animate-shimmer rounded-full bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] bg-[length:200%_100%]" />
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              icon={<TriangleAlert className="text-danger" />}
+              title="Analysis failed"
+              description={analysis.errorMessage ?? "The analysis could not be completed."}
+              action={<StartAnalysisForm documentId={doc.id} label="Try again" compact />}
+            />
+          )}
         </Card>
       </>
     );
@@ -92,45 +147,37 @@ async function RiskContent({ params }: Pick<PageProps<"/documents/[documentId]/r
   const counts = analysis.severityCounts!;
   const coverage = analysis.categoryCoverage;
   const identified = coverage.filter((c) => c.outcome === "IDENTIFIED").length;
-  const notIdentified = coverage.filter((c) => c.outcome === "NOT_IDENTIFIED");
   const errored = coverage.filter((c) => c.outcome === "ERROR").length;
   const discarded = coverage.reduce((n, c) => n + c.discardedFindings, 0);
-  const highest = RISK_SEVERITIES.find((s) => counts[s] > 0);
 
   return (
     <>
-      {back}
+      {crumbs}
       <PageHeader
-        title="Contract risk analysis"
         eyebrow={doc.title}
-        description={`Completed ${formatDateTime(analysis.completedAt)}${analysis.perspective ? ` · Perspective: ${analysis.perspective}` : ""}`}
-        actions={<ButtonLink href={`/documents/${doc.id}`} variant="secondary">Open workspace</ButtonLink>}
+        title="Contract risk analysis"
+        meta={
+          <MetaList
+            items={[
+              <span key="c" className="inline-flex items-center gap-1.5"><CalendarDays aria-hidden />Completed {formatDateTime(analysis.completedAt)}</span>,
+              analysis.perspective ? <span key="p" className="inline-flex items-center gap-1.5"><UserRound aria-hidden />{analysis.perspective}</span> : <span key="p">Neutral perspective</span>,
+            ]}
+          />
+        }
+        actions={workspaceLink}
       />
 
       <div className="space-y-6">
-        <section aria-label="Risk overview" className="grid gap-4 lg:grid-cols-3">
-          <Card className="p-5 lg:col-span-2">
-            <h2 className="text-sm font-semibold text-ink">Overview</h2>
-            <p className="mt-1 text-sm text-ink-muted">
-              {findings.length === 0
-                ? "No risks were flagged in the reviewed content."
-                : `${pluralize(findings.length, "finding")} across ${identified} identified clause categories. Highest severity: ${SEVERITY_LABEL[highest!].toLowerCase()}.`}{" "}
-              Findings are listed by severity; no composite numerical score is computed, because severity levels are qualitative legal judgements that do not add up meaningfully.
-            </p>
-            <div className="mt-4 grid grid-cols-5 gap-2">
-              {RISK_SEVERITIES.map((s) => (
-                <div key={s} className="rounded-md border border-line bg-surface-muted/40 px-3 py-2.5">
-                  <div className="flex items-center gap-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-ink-subtle">
-                    <span className={cn("size-2 rounded-full", SEVERITY_DOT[s])} aria-hidden />
-                    <span className="truncate">{SEVERITY_LABEL[s]}</span>
-                  </div>
-                  <div className="mt-1 font-serif text-2xl font-semibold tabular-nums text-ink">{counts[s]}</div>
-                </div>
-              ))}
-            </div>
+        <section aria-label="Risk overview" className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
+          <Card className="p-6 lg:col-span-2">
+            <RiskSummary counts={counts} findingCount={findings.length} identified={identified} categoryCount={coverage.length} />
             {(errored > 0 || discarded > 0) && (
-              <div className="mt-4 space-y-2">
-                {errored > 0 && <Alert kind="warning">{pluralize(errored, "category", "categories")} could not be evaluated and should be reviewed manually.</Alert>}
+              <div className="mt-5 space-y-2">
+                {errored > 0 && (
+                  <Alert kind="warning" title="Manual review needed">
+                    {pluralize(errored, "category", "categories")} could not be evaluated.
+                  </Alert>
+                )}
                 {discarded > 0 && (
                   <Alert kind="info">
                     {pluralize(discarded, "candidate finding")} {discarded === 1 ? "was" : "were"} discarded because the quoted evidence could not be located in the contract.
@@ -139,36 +186,57 @@ async function RiskContent({ params }: Pick<PageProps<"/documents/[documentId]/r
               </div>
             )}
           </Card>
-          <Card className="p-5">
-            <h2 className="text-sm font-semibold text-ink">Contract profile</h2>
+
+          <Card className="flex flex-col">
+            <CardHeader icon={<Building2 />} title="Contract profile" />
             {analysis.profile ? (
-              <dl className="mt-3 space-y-2 text-sm">
+              <dl className="flex-1 space-y-4 px-5 py-4 text-sm">
                 <div>
-                  <dt className="text-xs text-ink-subtle">Type</dt>
-                  <dd className="text-ink">{analysis.profile.contractType ?? "Not stated"}</dd>
+                  <dt className="eyebrow">Type</dt>
+                  <dd className="mt-1 font-medium text-ink">{analysis.profile.contractType ?? "Not stated"}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-ink-subtle">Parties</dt>
-                  <dd className="text-ink">{analysis.profile.parties.length ? analysis.profile.parties.join("; ") : "Not identified"}</dd>
+                  <dt className="eyebrow">Parties</dt>
+                  <dd className="mt-1 text-ink">
+                    {analysis.profile.parties.length ? (
+                      <ul className="space-y-0.5">
+                        {analysis.profile.parties.map((p) => (
+                          <li key={p}>{p}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      "Not identified"
+                    )}
+                  </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-ink-subtle">Summary</dt>
-                  <dd className="text-ink-muted">{analysis.profile.summary}</dd>
+                  <dt className="eyebrow">Summary</dt>
+                  <dd className="mt-1 leading-relaxed text-ink-muted">{analysis.profile.summary}</dd>
                 </div>
               </dl>
             ) : (
-              <p className="mt-2 text-sm text-ink-muted">Profile unavailable.</p>
+              <p className="flex-1 px-5 py-4 text-sm text-ink-muted">Profile unavailable.</p>
             )}
-            <div className="mt-4 border-t border-line pt-4">
+            <div className="border-t border-line bg-surface-muted/50 px-5 py-4">
+              <p className="mb-2 text-xs font-medium text-ink-muted">Re-run with a different perspective</p>
               <StartAnalysisForm documentId={doc.id} label="Re-run" compact />
             </div>
           </Card>
         </section>
 
         <Card>
-          <CardHeader title="Risk findings" description="Each finding quotes the contract. Open one to inspect its evidence against the document." />
+          <CardHeader
+            icon={<ShieldCheck />}
+            title="Risk findings"
+            description="Ordered by severity. Each finding quotes the contract — open one to inspect its evidence in the document."
+          />
           {findings.length === 0 ? (
-            <EmptyState icon={<ShieldCheck className="size-5" />} title="No risks flagged" description="Review the clause coverage below — categories that were not identified may still warrant a manual check." />
+            <EmptyState
+              compact
+              icon={<ShieldCheck />}
+              title="No risks flagged"
+              description="Review the clause coverage below — categories that were not identified may still warrant a manual check."
+            />
           ) : (
             <FindingsList
               documentId={doc.id}
@@ -186,33 +254,13 @@ async function RiskContent({ params }: Pick<PageProps<"/documents/[documentId]/r
           )}
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader
+            icon={<ListChecks />}
             title="Clause coverage"
             description={`${identified} of ${coverage.length} categories identified. "Not identified" means no matching provision was found in the reviewed content — it is not, by itself, a defect.`}
           />
-          <ul className="grid divide-line sm:grid-cols-2 lg:grid-cols-3">
-            {coverage.map((c) => (
-              <li key={c.category} className="border-b border-line px-5 py-3 sm:[&:nth-child(odd)]:border-r lg:[&:nth-child(odd)]:border-r-0 lg:[&:not(:nth-child(3n))]:border-r">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-ink">{CLAUSE_CATEGORY_LABELS[c.category]}</span>
-                  <Badge tone={OUTCOME_META[c.outcome].tone}>
-                    {c.outcome === "NOT_IDENTIFIED" && <CircleDashed className="size-3" aria-hidden />}
-                    {OUTCOME_META[c.outcome].label}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-ink-muted">
-                  {c.outcome === "IDENTIFIED" && c.findingCount > 0 ? `${pluralize(c.findingCount, "finding")} · ` : ""}
-                  {c.summary}
-                </p>
-              </li>
-            ))}
-          </ul>
-          {notIdentified.length > 0 && (
-            <p className="px-5 py-3 text-xs text-ink-subtle">
-              Not identified: {notIdentified.map((c) => CLAUSE_CATEGORY_LABELS[c.category]).join(", ")}.
-            </p>
-          )}
+          <CoverageGrid coverage={coverage} />
         </Card>
         <Disclaimer />
       </div>

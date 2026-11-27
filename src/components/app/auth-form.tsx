@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { Alert, Card, inputClasses, Spinner } from "@/components/ui/primitives";
+import { Alert, Card, Field, inputClasses, Spinner } from "@/components/ui/primitives";
+import { cn } from "@/lib/cn";
 import { authClient } from "@/lib/auth-client";
 
 /** Only allow same-site relative redirects after sign-in (prevents open redirects). */
@@ -44,57 +45,55 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   return (
-    <Card className="p-6">
-      <h1 className="font-serif text-xl font-semibold text-ink">{mode === "login" ? "Sign in" : "Create your account"}</h1>
-      <p className="mt-1 text-sm text-ink-muted">
-        {mode === "login" ? "Welcome back. Sign in to your workspace." : "Start reviewing contracts with evidence-backed answers."}
+    <div>
+      <h1 className="font-serif text-[1.875rem] leading-tight font-semibold tracking-[-0.015em] text-ink">{mode === "login" ? "Welcome back" : "Create your account"}</h1>
+      <p className="mt-2 text-[0.9375rem] text-ink-muted">
+        {mode === "login" ? "Sign in to your contract workspace." : "Start reviewing contracts with evidence-backed answers."}
       </p>
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
-        {mode === "signup" && (
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-ink">Name</span>
-            <input name="name" autoComplete="name" className={inputClasses} />
-          </label>
-        )}
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-ink">Email</span>
-          <input name="email" type="email" required autoComplete="email" className={inputClasses} />
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-ink">Password</span>
-          <input
-            name="password"
-            type="password"
-            required
-            minLength={10}
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            className={inputClasses}
-          />
-          {mode === "signup" && <span className="mt-1 block text-xs text-ink-subtle">At least 10 characters.</span>}
-        </label>
-        {error && <Alert kind="error">{error}</Alert>}
-        <Button type="submit" className="w-full" disabled={pending}>
-          {pending && <Spinner />}
-          {mode === "login" ? "Sign in" : "Create account"}
-        </Button>
-      </form>
+      <Card className="mt-8 p-6 sm:p-7">
+        <form onSubmit={onSubmit} className="space-y-5">
+          {mode === "signup" && (
+            <Field label="Full name">
+              <input name="name" autoComplete="name" className={cn(inputClasses, "h-10")} />
+            </Field>
+          )}
+          <Field label="Work email">
+            <input name="email" type="email" required autoComplete="email" className={cn(inputClasses, "h-10")} />
+          </Field>
+          <Field label="Password" hint={mode === "signup" ? "At least 10 characters." : undefined}>
+            <input
+              name="password"
+              type="password"
+              required
+              minLength={10}
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              className={cn(inputClasses, "h-10")}
+            />
+          </Field>
+          {error && <Alert kind="error">{error}</Alert>}
+          <Button type="submit" size="lg" className="w-full" disabled={pending}>
+            {pending && <Spinner />}
+            {mode === "login" ? "Sign in" : "Create account"}
+          </Button>
+        </form>
+      </Card>
       <p className="mt-6 text-center text-sm text-ink-muted">
         {mode === "login" ? (
           <>
             New to CasePilot?{" "}
-            <Link href="/signup" className="font-medium text-accent hover:underline">
+            <Link href="/signup" className="font-medium text-accent underline-offset-4 hover:underline">
               Create an account
             </Link>
           </>
         ) : (
           <>
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-accent hover:underline">
+            <Link href="/login" className="font-medium text-accent underline-offset-4 hover:underline">
               Sign in
             </Link>
           </>
         )}
       </p>
-    </Card>
+    </div>
   );
 }

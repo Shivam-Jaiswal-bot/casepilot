@@ -43,7 +43,7 @@ export function LibraryFilters() {
       <label className="relative flex-1">
         <span className="sr-only">Search documents</span>
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-subtle" aria-hidden />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by title or filename" className={cn(inputClasses, "pl-9")} />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by title or filename" className={cn(inputClasses, "h-9 pl-9")} />
       </label>
       <label className="flex items-center gap-2">
         <span className="sr-only">Filter by status</span>

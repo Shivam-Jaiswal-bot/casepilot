@@ -2,23 +2,20 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { AlertTriangle, ArrowUp, MessageSquarePlus, Square } from "lucide-react";
+import { ArrowUp, ChevronDown, History, MessageSquarePlus, Square } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { Button } from "@/components/ui/button";
-import { Alert, Disclaimer, Spinner } from "@/components/ui/primitives";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { Button, buttonClasses } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
+import { Alert, Disclaimer, Kbd } from "@/components/ui/primitives";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { AnswerValidation, CasePilotUIMessage, ChatRequestBody } from "@/lib/chat-types";
 import { cn } from "@/lib/cn";
-import { formatLocation, type Citation } from "@/lib/domain";
-import { AnswerText } from "./answer-text";
+import type { Citation } from "@/lib/domain";
+import { formatDateTime } from "@/lib/format";
+import { AssistantMessage, EmptyConversation, ThinkingMessage, UserMessage } from "./chat-messages";
 
-const SUGGESTIONS = [
-  "What are the major risks in this contract?",
-  "Can the other party terminate without notice?",
-  "What is the limitation of liability?",
-  "Does this contract renew automatically?",
-  "Is there an indemnification clause?",
-];
+const MAX_CHARS = 2000;
 
 function textOf(message: CasePilotUIMessage): string {
   return message.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
@@ -43,16 +40,19 @@ function friendlyError(error: Error): string {
 export interface ConversationSummary {
   id: string;
   title: string;
+  updatedAt?: Date | string;
 }
 
 export function ChatPanel({
   documentId,
+  documentTitle,
   initialConversationId,
   initialMessages,
   conversations,
   onSelectCitation,
 }: {
   documentId: string;
+  documentTitle: string;
   initialConversationId: string | null;
   initialMessages: CasePilotUIMessage[];
   conversations: ConversationSummary[];
@@ -65,6 +65,7 @@ export function ChatPanel({
   const [stoppedId, setStoppedId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const transport = useMemo(
     () =>
@@ -81,6 +82,9 @@ export function ChatPanel({
     [documentId],
   );
 
+  const scrollToEnd = (behavior: ScrollBehavior = "smooth") =>
+    queueMicrotask(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior }));
+
   const { messages, sendMessage, status, error, stop, clearError } = useChat<CasePilotUIMessage>({
     id: initialConversationId ?? `new-${documentId}`,
     messages: initialMessages,
@@ -93,13 +97,29 @@ export function ChatPanel({
         window.history.replaceState(window.history.state, "", url);
       }
       if (part.type === "data-status") setStage(part.data.stage);
-      queueMicrotask(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }));
+      scrollToEnd();
     },
     onFinish: () => setStage(null),
     onError: () => setStage(null),
   });
 
   const busy = status === "submitted" || status === "streaming";
+  const last = messages.at(-1);
+  const awaitingFirstToken = busy && last?.role !== "assistant";
+
+  // Open existing conversations at the latest answer (new ones start at the top).
+  const hasInitialMessages = initialMessages.length > 0;
+  useEffect(() => {
+    if (hasInitialMessages) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+  }, [hasInitialMessages]);
+
+  // Grow the textarea with its content (DOM-only side effect).
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 168)}px`;
+  }, [input]);
 
   const submit = (text: string) => {
     const trimmed = text.trim();
@@ -108,6 +128,7 @@ export function ChatPanel({
     setInput("");
     // The conversation id is read here (an event handler), not during render.
     void sendMessage({ text: trimmed }, { body: { conversationId: conversationRef.current ?? undefined } });
+    scrollToEnd();
   };
 
   const onSubmit = (e: FormEvent) => {
@@ -115,136 +136,122 @@ export function ChatPanel({
     submit(input);
   };
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       submit(input);
     }
   };
+  const onStop = () => {
+    if (last?.role === "assistant") setStoppedId(last.id);
+    void stop();
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b border-line px-4 py-2">
-        <h2 className="text-sm font-semibold text-ink">Ask about this contract</h2>
-        <div className="ml-auto flex items-center gap-1">
-          {conversations.length > 0 && (
-            <select
-              aria-label="Previous conversations"
-              className="h-7 max-w-44 truncate rounded border border-line-strong bg-surface px-2 text-xs text-ink-muted"
-              value={initialConversationId ?? ""}
-              onChange={(e) => router.push(`/documents/${documentId}${e.target.value ? `?c=${e.target.value}` : "?new=1"}`)}
-            >
-              <option value="">Conversations…</option>
-              {conversations.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
-          )}
-          <a href={`/documents/${documentId}?new=1`} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-ink-muted hover:bg-surface-muted hover:text-ink" title="New conversation">
-            <MessageSquarePlus className="size-3.5" aria-hidden /> New
-          </a>
+      {/* Header */}
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-surface px-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-[0.875rem] font-semibold text-ink">Contract Assistant</h2>
         </div>
-      </div>
-
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4" aria-live="polite">
-        {messages.length === 0 && (
-          <div className="py-6">
-            <p className="text-sm text-ink-muted">Answers are drawn only from this document, with citations you can inspect. Try:</p>
-            <div className="mt-3 flex flex-col gap-2">
-              {SUGGESTIONS.map((s) => (
-                <button key={s} onClick={() => submit(s)} className="rounded-md border border-line bg-surface px-3 py-2 text-left text-sm text-ink hover:border-line-strong hover:bg-surface-muted/60">
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {messages.map((m) => {
-          if (m.role === "user") {
-            return (
-              <div key={m.id} className="flex justify-end">
-                <div className="max-w-[85%] rounded-lg rounded-br-sm bg-accent px-3.5 py-2 text-sm text-white">{textOf(m)}</div>
-              </div>
-            );
-          }
-          const validation = validationOf(m);
-          const citations = validation ? new Map(validation.citations.map((c) => [c.sourceId, c])) : undefined;
-          return (
-            <div key={m.id} className="space-y-2">
-              <AnswerText text={textOf(m)} markers={{ citations, invalid: new Set(validation?.invalidMarkers), onSelect: onSelectCitation }} />
-              {validation && validation.citations.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {validation.citations.map((c) => (
-                    <button
-                      key={c.sourceId}
-                      onClick={() => onSelectCitation(c)}
-                      className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-line bg-surface px-2 py-1 text-left text-xs text-ink-muted hover:border-accent hover:text-accent"
-                    >
-                      <span className="font-mono font-semibold text-accent">{c.sourceId}</span>
-                      <span className="truncate">{formatLocation(c)}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {(validation?.interrupted || m.id === stoppedId) && (
-                <p className="text-xs italic text-ink-subtle">Response stopped — this answer is incomplete.</p>
-              )}
-              {validation && (validation.invalidMarkers.length > 0 || validation.unsupportedPageRefs.length > 0) && (
-                <div className="flex items-start gap-1.5 text-xs text-danger">
-                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                  <span>
-                    {validation.invalidMarkers.length > 0 && `Unverified citation(s) ${validation.invalidMarkers.join(", ")} did not match retrieved evidence. `}
-                    {validation.unsupportedPageRefs.length > 0 && `Page reference(s) ${validation.unsupportedPageRefs.join(", ")} are not in the cited sources — verify manually.`}
-                  </span>
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {busy && (
-          <div className="flex items-center gap-2 text-xs text-ink-muted">
-            <Spinner />
-            {stage === "generating" ? "Drafting a grounded answer…" : "Searching the document…"}
-          </div>
-        )}
-        {error && <Alert kind="error">{friendlyError(error)}</Alert>}
-      </div>
-
-      <form onSubmit={onSubmit} className="border-t border-line p-3">
-        <div className={cn("flex items-end gap-2 rounded-lg border border-line-strong bg-surface p-2 shadow-(--shadow-card) focus-within:border-focus")}>
-          <label className="sr-only" htmlFor="chat-input">
-            Question
-          </label>
-          <textarea
-            id="chat-input"
-            rows={2}
-            maxLength={2000}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Ask a question about this contract…"
-            className="max-h-40 min-h-[2.5rem] flex-1 resize-none bg-transparent px-1 text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
+        {conversations.length > 0 && (
+          <Dropdown
+            label="Conversation history"
+            header="Conversations"
+            triggerClassName={cn(buttonClasses("ghost", "xs"), "gap-1.5")}
+            trigger={
+              <>
+                <History aria-hidden />
+                <span className="hidden sm:inline">History</span>
+                <span className="num rounded bg-surface-sunken px-1 text-[0.625rem] text-ink-muted">{conversations.length}</span>
+                <ChevronDown className="size-3 text-ink-subtle" aria-hidden />
+              </>
+            }
+            items={conversations.map((c) => ({
+              key: c.id,
+              label: c.title,
+              description: c.updatedAt ? `Updated ${formatDateTime(c.updatedAt)}` : undefined,
+              selected: c.id === initialConversationId,
+              onSelect: () => router.push(`/documents/${documentId}?c=${c.id}`),
+            }))}
           />
-          {busy ? (
-            <Button type="button" variant="secondary" size="sm" onClick={() => {
-                const last = messages.at(-1);
-                if (last?.role === "assistant") setStoppedId(last.id);
-                void stop();
-              }}
-              aria-label="Stop generating"
-            >
-              <Square className="size-3.5" />
-            </Button>
-          ) : (
-            <Button type="submit" size="sm" disabled={!input.trim()} aria-label="Send question">
-              <ArrowUp className="size-4" />
-            </Button>
+        )}
+        <Tooltip content="Start a new conversation" side="bottom">
+          <a href={`/documents/${documentId}?new=1`} className={buttonClasses("secondary", "xs")} aria-label="New conversation">
+            <MessageSquarePlus aria-hidden />
+            <span className="hidden sm:inline">New</span>
+          </a>
+        </Tooltip>
+      </div>
+
+      {/* Conversation */}
+      <div ref={scrollRef} className="scroll-thin min-h-0 flex-1 overflow-x-hidden overflow-y-auto scroll-smooth" aria-live="polite">
+        <div className="mx-auto max-w-3xl space-y-7 px-4 py-6 sm:px-6">
+          {messages.length === 0 && <EmptyConversation documentTitle={documentTitle} onAsk={submit} />}
+
+          {messages.map((m, i) =>
+            m.role === "user" ? (
+              <UserMessage key={m.id} text={textOf(m)} />
+            ) : (
+              <AssistantMessage
+                key={m.id}
+                text={textOf(m)}
+                validation={validationOf(m)}
+                streaming={busy && i === messages.length - 1}
+                stage={stage}
+                stopped={m.id === stoppedId}
+                onSelectCitation={onSelectCitation}
+              />
+            ),
           )}
+
+          {awaitingFirstToken && <ThinkingMessage stage={stage} />}
+          {error && <Alert kind="error" title="The assistant could not answer">{friendlyError(error)}</Alert>}
         </div>
-        <Disclaimer className="mt-2 px-1" />
+      </div>
+
+      {/* Composer */}
+      <form onSubmit={onSubmit} className="shrink-0 border-t border-line bg-surface px-3 pt-3 pb-2.5 sm:px-4">
+        <div className="mx-auto max-w-3xl">
+          <div className="rounded-xl border border-line-strong bg-surface shadow-sm transition-[border-color,box-shadow] duration-150 focus-within:border-focus focus-within:ring-[3px] focus-within:ring-focus/12">
+            <label className="sr-only" htmlFor="chat-input">
+              Ask a question about this contract
+            </label>
+            <textarea
+              ref={inputRef}
+              id="chat-input"
+              rows={1}
+              maxLength={MAX_CHARS}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Ask about terms, obligations, deadlines or risks…"
+              className="scroll-thin block max-h-42 min-h-[3rem] w-full resize-none bg-transparent px-3.5 pt-3 pb-1 text-[0.875rem] leading-relaxed text-ink placeholder:text-ink-subtle focus:outline-none"
+            />
+            <div className="flex items-center justify-between gap-2 px-2.5 pb-2">
+              <p className="hidden items-center gap-1 text-[0.6875rem] text-ink-subtle sm:flex">
+                <Kbd>Enter</Kbd> to send · <Kbd>Shift</Kbd>+<Kbd>Enter</Kbd> new line
+              </p>
+              <div className="ml-auto flex items-center gap-2">
+                {input.length > MAX_CHARS * 0.8 && (
+                  <span className={cn("num text-[0.6875rem]", input.length >= MAX_CHARS ? "text-danger" : "text-ink-subtle")}>
+                    {input.length}/{MAX_CHARS}
+                  </span>
+                )}
+                {busy ? (
+                  <Button variant="secondary" size="xs" onClick={onStop} aria-label="Stop generating">
+                    <Square className="fill-current" aria-hidden />
+                    Stop
+                  </Button>
+                ) : (
+                  <Button type="submit" size="icon-sm" disabled={!input.trim()} aria-label="Send question" className="rounded-lg">
+                    <ArrowUp aria-hidden />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+          <Disclaimer className="mt-2 px-1 text-center text-[0.6875rem]" />
+        </div>
       </form>
     </div>
   );
