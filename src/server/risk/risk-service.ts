@@ -22,6 +22,7 @@ import { CATEGORY_PLAYBOOK } from "./categories";
 import { verifyClauseEvidence, verifyFindings, type VerifiedFinding } from "./evidence";
 import { buildCategoryPrompt, buildProfilePrompt, PROFILE_INSTRUCTIONS, RISK_REVIEW_INSTRUCTIONS } from "./prompts";
 import { categoryEvaluationSchema, contractProfileSchema } from "./schema";
+import { calibrateSeverity, type SeverityRationale } from "./severity-calibration";
 
 export type RiskAnalysisRecord = typeof riskAnalyses.$inferSelect;
 export type RiskFindingRecord = typeof riskFindings.$inferSelect;
@@ -126,7 +127,7 @@ async function buildProfile(db: Database, model: ModelHandle, ownerId: string, d
 
 interface CategoryResult {
   coverage: CategoryCoverage;
-  findings: (VerifiedFinding & { category: ClauseCategory })[];
+  findings: (VerifiedFinding & { category: ClauseCategory; severityRationale: SeverityRationale })[];
   /** True when evidence was retrieved and the model was asked to evaluate it. */
   evaluated: boolean;
   transientError: boolean;
@@ -184,7 +185,11 @@ async function evaluateCategory(
         discardedFindings: discarded,
         evidence: identified ? (clauseEvidence.length ? clauseEvidence : findings[0].evidence) : [],
       },
-      findings: findings.map((f) => ({ ...f, category })),
+      findings: findings.map((f) => {
+        // Clamp the label into the range the model's own severity factors allow.
+        const { severity, rationale } = calibrateSeverity(f.severity, f.severityFactors);
+        return { ...f, severity, category, severityRationale: rationale };
+      }),
       evaluated: true,
       transientError: false,
     };
@@ -261,6 +266,7 @@ export async function runRiskAnalysis(analysisId: string, ownerId: string, deps:
           confidence: f.confidence,
           basis: f.basis,
           evidence: f.evidence,
+          severityRationale: f.severityRationale,
           sortOrder: i,
         })),
       );
@@ -282,6 +288,7 @@ export async function runRiskAnalysis(analysisId: string, ownerId: string, deps:
   logger.info("risk.completed", {
     analysisId,
     findings: findings.length,
+    severityAdjusted: findings.filter((f) => f.severityRationale.adjusted).length,
     discarded: results.reduce((n, r) => n + r.coverage.discardedFindings, 0),
     errors: errored.length,
   });

@@ -105,9 +105,10 @@ export function buildAnswerMessages(question: string, history: HistoryTurn[], so
   return [...prior, { role: "user", content: buildGroundedUserTurn(question, sources) }];
 }
 
-export function streamGroundedAnswer(question: string, history: HistoryTurn[], sources: ValidatableSource[], handle?: ModelHandle) {
+export function streamGroundedAnswer(question: string, history: HistoryTurn[], sources: ValidatableSource[], handle?: ModelHandle, abortSignal?: AbortSignal) {
   const model = handle ?? getModel("primary");
   return streamText({
+    abortSignal,
     model: model.model,
     instructions: GROUNDED_ANSWER_INSTRUCTIONS,
     messages: buildAnswerMessages(question, history, sources),

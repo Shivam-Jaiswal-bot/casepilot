@@ -22,6 +22,8 @@ export const POST = handle("chat", async (request: Request) => {
     documentId: body.documentId,
     conversationId: body.conversationId,
     question: body.text,
+    // Stopping in the UI aborts the request; stop the model call too instead of paying for an unseen answer.
+    abortSignal: request.signal,
   });
   return createUIMessageStreamResponse({ stream });
 });

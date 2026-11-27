@@ -12,6 +12,8 @@ export interface AnswerValidation {
   abstained: boolean;
   /** Fraction of substantive sentences carrying at least one citation (0–1). */
   citationCoverage: number;
+  /** True when the user stopped generation: the text is a partial answer. */
+  interrupted?: boolean;
 }
 
 export type ChatDataParts = {

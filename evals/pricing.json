@@ -1,0 +1,13 @@
+{
+  "note": "USD per 1M tokens, standard tier. Verify against the providers' pages before relying on cost figures; prices change.",
+  "retrievedAt": "2026-11-25",
+  "sources": {
+    "openai": "https://developers.openai.com/api/docs/pricing (Standard tier, short context <=272K input tokens)",
+    "deepseek": "https://api-docs.deepseek.com/quick_start/pricing (PEAK rates; off-peak is half: peak = 01:00-04:00 and 06:00-10:00 UTC Mon-Fri)"
+  },
+  "models": {
+    "openai:gpt-6-luna": { "input": 0.10, "cachedInput": 0.01, "output": 0.50 },
+    "deepseek:deepseek-v4-pro": { "input": 1.32, "cachedInput": 0.044, "output": 3.96 },
+    "deepseek:deepseek-flash": { "input": 0.30, "cachedInput": 0.006, "output": 1.20 }
+  }
+}

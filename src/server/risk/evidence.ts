@@ -18,7 +18,7 @@ export function normalizeForMatch(text: string): string {
     .replace(/[‘’`´]/g, "'")
     .replace(/[“”«»]/g, '"')
     .replace(/[‐‑‒–—―]/g, "-")
-    .replace(/\[s\d+\]/g, "")
+    .replace(/\[s\d+(?:\s*[,;]\s*s\d+)*\]/g, "")
     .replace(/[^a-z0-9'"$%.,;:()\- ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();

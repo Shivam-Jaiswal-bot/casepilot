@@ -82,7 +82,14 @@ function scopePredicate(ownerId: string, documentIds?: string[]): SQL {
 const SELECT_COLUMNS = sql`c.id as chunk_id, c.document_id, d.title as document_title, c.chunk_index,
   c.page_start, c.page_end, c.section_title, c.content, c.token_count, c.metadata->'spans' as spans`;
 
-async function vectorSearch(db: Database, embedding: number[], scope: SQL, limit: number): Promise<ChunkRow[]> {
+/**
+ * Vector arm. Only chunks embedded by the CURRENT embedder are compared:
+ * vectors from a different model (or dimension) live in a different space and
+ * cosine distances against them are meaningless. Such chunks stay reachable
+ * through full-text search until the document is re-indexed
+ * (`npm run embeddings -- --reindex`).
+ */
+async function vectorSearch(db: Database, embedding: number[], embedderId: string, scope: SQL, limit: number): Promise<ChunkRow[]> {
   const vector = JSON.stringify(embedding);
   return db.transaction(async (tx) => {
     // Larger candidate list for the HNSW graph walk, and iterative scans
@@ -93,7 +100,7 @@ async function vectorSearch(db: Database, embedding: number[], scope: SQL, limit
       select ${SELECT_COLUMNS}, 1 - (c.embedding <=> ${vector}::vector) as score
       from document_chunks c
       join documents d on d.id = c.document_id
-      where ${scope}
+      where ${scope} and c.metadata->>'embeddingModel' = ${embedderId}
       order by c.embedding <=> ${vector}::vector
       limit ${limit}
     `)) as unknown as ChunkRow[];
@@ -140,7 +147,7 @@ export async function retrieve(req: RetrievalRequest, deps: RetrievalDeps = { db
   await Promise.all(
     queries.map(async (query, i) => {
       const [vectorRows, textRows] = await Promise.all([
-        vectorSearch(deps.db, embeddings[i], scope, candidates),
+        vectorSearch(deps.db, embeddings[i], deps.embedder.id, scope, candidates),
         (async () => {
           const tsq = toOrTsQuery(query);
           return tsq ? textSearch(deps.db, tsq, scope, candidates) : [];

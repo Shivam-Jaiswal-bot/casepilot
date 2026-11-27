@@ -61,6 +61,8 @@ export function ChatPanel({
   const router = useRouter();
   const conversationRef = useRef<string | null>(initialConversationId);
   const [stage, setStage] = useState<"retrieving" | "generating" | null>(null);
+  /** Assistant message the user stopped in this session (stored partial answers carry validation.interrupted). */
+  const [stoppedId, setStoppedId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -186,6 +188,9 @@ export function ChatPanel({
                   ))}
                 </div>
               )}
+              {(validation?.interrupted || m.id === stoppedId) && (
+                <p className="text-xs italic text-ink-subtle">Response stopped — this answer is incomplete.</p>
+              )}
               {validation && (validation.invalidMarkers.length > 0 || validation.unsupportedPageRefs.length > 0) && (
                 <div className="flex items-start gap-1.5 text-xs text-danger">
                   <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
@@ -224,7 +229,13 @@ export function ChatPanel({
             className="max-h-40 min-h-[2.5rem] flex-1 resize-none bg-transparent px-1 text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
           />
           {busy ? (
-            <Button type="button" variant="secondary" size="sm" onClick={() => stop()} aria-label="Stop generating">
+            <Button type="button" variant="secondary" size="sm" onClick={() => {
+                const last = messages.at(-1);
+                if (last?.role === "assistant") setStoppedId(last.id);
+                void stop();
+              }}
+              aria-label="Stop generating"
+            >
               <Square className="size-3.5" />
             </Button>
           ) : (

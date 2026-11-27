@@ -18,6 +18,7 @@ const sources: ValidatableSource[] = [
 
 const finding = (overrides: Partial<FindingOutput> = {}): FindingOutput => ({
   title: "Asymmetric termination for convenience",
+  severityFactors: { direction: "ADVERSE", exposure: "SIGNIFICANT", marketPosition: "DEVIATES" },
   severity: "HIGH",
   explanation: "Provider can exit on 10 days; Customer needs 180.",
   basis: "EXPLICIT",

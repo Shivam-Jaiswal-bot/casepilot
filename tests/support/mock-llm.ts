@@ -22,7 +22,7 @@ export function promptToText(prompt: unknown): string {
     .join("\n");
 }
 
-export function scriptedModel(responder: Responder): { handle: ModelHandle; model: MockLanguageModelV4; prompts: string[] } {
+export function scriptedModel(responder: Responder, opts: { chunkDelayInMs?: number } = {}): { handle: ModelHandle; model: MockLanguageModelV4; prompts: string[] } {
   const prompts: string[] = [];
   const model = new MockLanguageModelV4({
     doGenerate: async (options) => {
@@ -36,6 +36,7 @@ export function scriptedModel(responder: Responder): { handle: ModelHandle; mode
       const words = text.split(/(?<= )/);
       return {
         stream: simulateReadableStream({
+          chunkDelayInMs: opts.chunkDelayInMs ?? 0,
           chunks: [
             { type: "text-start", id: "t1" },
             ...words.map((delta) => ({ type: "text-delta" as const, id: "t1", delta })),

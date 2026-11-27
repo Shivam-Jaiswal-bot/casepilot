@@ -67,6 +67,16 @@ async function FindingContent({ params }: Pick<PageProps<"/documents/[documentId
           <Section title="Why it was flagged">{finding.explanation}</Section>
           <Section title="Potential implications">{finding.businessImplication}</Section>
           <Section title="Suggested legal review">{finding.reviewSuggestion}</Section>
+          {finding.severityRationale ? (
+            <div className="md:col-span-3">
+              <Section title="How the severity was assessed">
+                {`Direction: ${finding.severityRationale.direction.toLowerCase()} · exposure: ${finding.severityRationale.exposure.toLowerCase()} · market position: ${finding.severityRationale.marketPosition.toLowerCase()}.`}
+                {finding.severityRationale.adjusted
+                  ? ` The model proposed ${finding.severityRationale.modelSeverity.toLowerCase()}; it was adjusted to ${finding.severity.toLowerCase()} to stay consistent with these factors.`
+                  : null}
+              </Section>
+            </div>
+          ) : null}
         </Card>
         <div>
           <h2 className="mb-3 text-sm font-semibold text-ink">Source evidence</h2>

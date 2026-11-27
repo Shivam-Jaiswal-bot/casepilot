@@ -24,6 +24,31 @@ describe("contract risk analysis", () => {
   });
   afterEach(() => setModelOverride({}));
 
+  it("calibrates a severity that contradicts its own factors and stores the rationale", async () => {
+    // Overstated: a mutual, customary governing-law clause labelled CRITICAL.
+    const overstated = (p: string) => {
+      if (!p.includes("Clause category under review: Governing law")) return reviewer(p);
+      const sid = /<source id="(S\d+)"[^>]*>[^<]*governed by the laws of the State of Delaware/.exec(p)?.[1] ?? "S1";
+      const quote = "This Agreement is governed by the laws of the State of Delaware";
+      return JSON.stringify({
+        clauseStatus: "PRESENT",
+        summary: "Delaware law governs.",
+        clauseEvidence: [{ sourceId: sid, quote }],
+        findings: [{ title: "Delaware law", severityFactors: { direction: "BALANCED", exposure: "MINOR", marketPosition: "STANDARD" }, severity: "CRITICAL", explanation: "x", basis: "EXPLICIT", evidence: [{ sourceId: sid, quote }], businessImplication: "x", reviewSuggestion: "x", confidence: "HIGH" }],
+      });
+    };
+    setModelOverride({ primary: scriptedModel(overstated).handle });
+    const started = await startRiskAnalysis(owner, documentId, "We are the Customer");
+    await drainQueue();
+    const { analysis, findings } = await getAnalysis(owner, started.id);
+    const law = findings.find((f) => f.category === "GOVERNING_LAW");
+    expect(law).toMatchObject({ severity: "LOW" });
+    expect(law?.severityRationale).toMatchObject({ modelSeverity: "CRITICAL", adjusted: true, allowed: ["LOW", "INFORMATIONAL"], direction: "BALANCED" });
+    // The in-range termination finding is untouched.
+    expect(findings.find((f) => f.category === "TERMINATION")?.severityRationale).toMatchObject({ modelSeverity: "HIGH", adjusted: false });
+    expect(analysis.severityCounts).toMatchObject({ CRITICAL: 0, HIGH: 1, LOW: 1 });
+  });
+
   it("produces evidence-backed findings, discards unsupported ones and separates NOT_IDENTIFIED", async () => {
     const started = await startRiskAnalysis(owner, documentId, "We are the Customer");
     expect(started.status).toBe("QUEUED");

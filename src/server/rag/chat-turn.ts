@@ -18,6 +18,8 @@ export interface ChatTurnInput {
   documentId: string;
   conversationId?: string;
   question: string;
+  /** Aborted when the client stops the response (request signal). */
+  abortSignal?: AbortSignal;
 }
 
 const HISTORY_TURNS = 6;
@@ -83,7 +85,7 @@ export async function startChatTurn(input: ChatTurnInput): Promise<ReadableStrea
       }
 
       writer.write({ type: "data-status", data: { stage: "generating" }, transient: true });
-      const result = streamGroundedAnswer(input.question, history, prepared.sources, model);
+      const result = streamGroundedAnswer(input.question, history, prepared.sources, model, input.abortSignal);
 
       // Forward chunks sequentially (rather than writer.merge) so the citation
       // data part and the finish event are guaranteed to follow the final text.
@@ -95,10 +97,35 @@ export async function startChatTurn(input: ChatTurnInput): Promise<ReadableStrea
         onError: () => "The assistant failed while generating this answer.",
       });
       const reader = uiStream.getReader();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        writer.write(value);
+      let streamed = "";
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value.type === "text-delta") streamed += value.delta;
+          writer.write(value);
+        }
+      } catch (err) {
+        if (!input.abortSignal?.aborted) throw err;
+      }
+
+      if (input.abortSignal?.aborted) {
+        // Stopped by the user: keep what was streamed (the screen may lag by the few
+        // chunks already in flight), marked as partial. Generation stops with the request.
+        if (streamed.trim()) {
+          const partial = validateAnswer(streamed, prepared.sources);
+          await appendMessage({
+            ownerId: input.ownerId,
+            conversationId: conversation.id,
+            role: "assistant",
+            content: streamed,
+            citations: partial.citations,
+            validation: { invalidMarkers: partial.invalidMarkers, unsupportedPageRefs: partial.unsupportedPageRefs, abstained: false, interrupted: true },
+            retrieval: prepared.trace,
+          });
+        }
+        logger.info("chat.interrupted", { conversationId: conversation.id, chars: streamed.length });
+        return;
       }
 
       const text = await result.text;
@@ -123,6 +150,7 @@ export async function startChatTurn(input: ChatTurnInput): Promise<ReadableStrea
       });
       logger.info("chat.answered", {
         conversationId: conversation.id,
+        model: model.label,
         sources: prepared.sources.length,
         citations: validation.citations.length,
         invalidMarkers: validation.invalidMarkers.length,

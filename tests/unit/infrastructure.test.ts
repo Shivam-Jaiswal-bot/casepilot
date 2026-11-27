@@ -22,7 +22,8 @@ describe("configuration", () => {
     expect(resolveModelId(parseEnv({ ...base, LLM_PROVIDER: "anthropic" }), "primary")).toBe("claude-opus-5-5");
     const custom = parseEnv({ ...base, LLM_MODEL: "deepseek-flash" });
     expect(resolveModelId(custom, "utility")).toBe("deepseek-flash");
-    expect(() => resolveModelId(parseEnv({ ...base, LLM_PROVIDER: "openai" }), "primary")).toThrow(/LLM_MODEL must be set/);
+    expect(resolveModelId(parseEnv({ ...base, LLM_PROVIDER: "openai" }), "primary")).toBe("gpt-6-luna");
+    expect(resolveModelId(parseEnv({ ...base, LLM_PROVIDER: "openai" }), "utility")).toBe("gpt-6-luna");
   });
 
   it("rejects embedding dimensions that don't match the vector column", () => {

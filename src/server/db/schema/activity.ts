@@ -23,6 +23,7 @@ import {
   type FindingEvidence,
   type SeverityCounts,
 } from "@/lib/domain";
+import type { SeverityRationale } from "@/server/risk/severity-calibration";
 import { user } from "./auth";
 import { documents } from "./documents";
 
@@ -96,6 +97,8 @@ export const riskFindings = pgTable(
     basis: basisEnum("basis").notNull(),
     /** At least one verified evidence item is required (enforced in the risk service). */
     evidence: jsonb("evidence").$type<FindingEvidence[]>().notNull(),
+    /** Severity factors and calibration outcome. Null for findings stored before calibration existed. */
+    severityRationale: jsonb("severity_rationale").$type<SeverityRationale>(),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -181,7 +184,7 @@ export const messages = pgTable(
     content: text("content").notNull(),
     citations: jsonb("citations").$type<Citation[]>().notNull().default([]),
     /** Diagnostics: invalid citation markers / unsupported page references detected in the answer. */
-    validation: jsonb("validation").$type<{ invalidMarkers: string[]; unsupportedPageRefs: number[]; abstained: boolean }>(),
+    validation: jsonb("validation").$type<{ invalidMarkers: string[]; unsupportedPageRefs: number[]; abstained: boolean; interrupted?: boolean }>(),
     /** Audit trail of which chunks were retrieved (ids and scores only, no text). */
     retrieval: jsonb("retrieval").$type<RetrievalTrace>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

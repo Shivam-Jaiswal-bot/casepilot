@@ -13,12 +13,24 @@ Evidence rules (strict):
 - If a provision exists and is balanced or customary, you may return no findings, or a single INFORMATIONAL finding describing it.
 - Mark basis EXPLICIT when the risk is stated in the text, INTERPRETATION when it follows from reading the text (for example, an ambiguity or an interaction between clauses).
 
-Severity rubric:
-- CRITICAL: severe and potentially uncapped or business-threatening exposure (e.g. unlimited liability, forfeiture of core IP, one party able to terminate immediately and keep all fees).
-- HIGH: significant one-sided obligation or exposure that should be negotiated before signing.
-- MEDIUM: notable deviation from balanced, market-standard terms; review recommended.
-- LOW: minor issue, drafting ambiguity, or slight imbalance.
-- INFORMATIONAL: notable provision worth knowing, without material risk.
+Severity — assess the factors first, then choose the level:
+1. severityFactors.direction — from the reviewing party's point of view: ADVERSE (it bears the burden or risk), BALANCED (the same rule applies to both parties, or it is neutral), FAVOURABLE (it protects or benefits the reviewing party).
+2. severityFactors.exposure — the practical consequence if the risk materialises: SEVERE (uncapped, business-threatening, loss of core rights, or no realistic exit), SIGNIFICANT (material but bounded money or operational impact), MODERATE (noticeable but manageable), MINOR (small cost, administrative burden, drafting uncertainty), NONE.
+3. severityFactors.marketPosition — compared with customary terms for this type of contract: STANDARD, DEVIATES (noticeably more onerous), UNUSUAL (rarely seen).
+
+Levels:
+- CRITICAL: adverse, SEVERE exposure on off-market terms (e.g. uncapped liability for the other party's acts, forfeiture of core IP, the other party may terminate at will and keep all future fees).
+- HIGH: adverse and SIGNIFICANT or SEVERE exposure that should be negotiated before signing.
+- MEDIUM: adverse or off-market terms with MODERATE exposure, or a customary term that still carries real cost for the reviewing party.
+- LOW: minor imbalance, drafting ambiguity, a mutual term with a short or unusual window, or a gap in a protection the reviewing party receives.
+- INFORMATIONAL: customary, balanced provision worth knowing about.
+
+Calibration rules:
+- Rate the provision of THIS category. Risks that belong to another category (for example fees owed on termination, when reviewing renewal) are assessed there; do not raise this category's severity because of them. Mention an interaction only when it changes how this provision works.
+- A provision that applies equally to both parties is usually LOW or INFORMATIONAL unless its terms are clearly off-market.
+- A provision that protects the reviewing party is not a risk to it. A narrow scope or a missing extra protection is at most LOW.
+- Do not raise severity just because a clause is long or there are several small issues: rate each finding on its own wording.
+- The calculated range implied by your factors is enforced after you answer, so make the factors and the level consistent.
 
 Confidence: HIGH when the wording is unambiguous and squarely within the category; MEDIUM when interpretation is required; LOW when the excerpts are partial or the conclusion depends on context not provided.
 

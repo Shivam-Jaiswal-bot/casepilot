@@ -3,6 +3,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { embed, embedMany } from "ai";
 import { EMBEDDING_COLUMN_DIMENSIONS, getEnv } from "@/server/config/env";
 import { AppError } from "@/server/errors";
+import { getProviderFetch } from "./provider-fetch";
 
 /**
  * Embedding abstraction. Documents and queries are embedded through the same
@@ -23,7 +24,7 @@ class AiSdkOpenAIEmbedder implements Embedder {
   private readonly batchSize: number;
 
   constructor(apiKey: string, modelId: string, dimensions: number, batchSize: number) {
-    this.model = createOpenAI({ apiKey }).embeddingModel(modelId);
+    this.model = createOpenAI({ apiKey, fetch: getProviderFetch() }).embeddingModel(modelId);
     this.dimensions = dimensions;
     this.batchSize = batchSize;
     this.id = `openai:${modelId}@${dimensions}`;
@@ -120,6 +121,11 @@ let cached: Embedder | undefined;
 
 export function setEmbedderOverride(embedder: Embedder | undefined): void {
   override = embedder;
+}
+
+/** Test hook: forget the cached embedder so a test can change configuration. */
+export function resetEmbedderCache(): void {
+  cached = undefined;
 }
 
 export function getEmbedder(): Embedder {

@@ -27,6 +27,7 @@ export function reviewer(prompt: string): string {
       findings: [
         {
           title: "Provider may terminate for convenience on 10 days' notice",
+          severityFactors: { direction: "ADVERSE", exposure: "SIGNIFICANT", marketPosition: "DEVIATES" },
           severity: "HIGH",
           explanation: "The Provider can exit on 10 days while the Customer needs 180.",
           basis: "EXPLICIT",
@@ -46,6 +47,7 @@ export function reviewer(prompt: string): string {
       findings: [
         {
           title: "Unlimited customer indemnity",
+          severityFactors: { direction: "ADVERSE", exposure: "SEVERE", marketPosition: "UNUSUAL" },
           severity: "CRITICAL",
           explanation: "Fabricated.",
           basis: "EXPLICIT",

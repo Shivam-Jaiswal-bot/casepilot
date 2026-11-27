@@ -145,6 +145,32 @@ describe("grounded answering", () => {
     expect(await listMessages(ctx.alice, conversationId)).toHaveLength(4);
   });
 
+  it("stops generating when the client aborts and stores only the partial answer, marked interrupted", async () => {
+    const full = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ") + " [S1].";
+    setModelOverride({ primary: scriptedModel((p) => (p.includes("Standalone search query") ? "termination" : full), { chunkDelayInMs: 15 }).handle });
+    const controller = new AbortController();
+    const stream = await startChatTurn({ ownerId: ctx.alice, documentId: ctx.aliceDoc.id, question: "How much notice does the provider need to terminate?", abortSignal: controller.signal });
+    const reader = stream.getReader();
+    let conversationId = "";
+    let received = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value.type === "data-conversation") conversationId = value.data.id;
+      if (value.type === "text-delta") received += value.delta;
+      if (received.split(" ").length >= 5 && !controller.signal.aborted) controller.abort();
+      if (value.type === "finish") break;
+    }
+    // Give the server-side execute() a moment to persist after the abort.
+    for (let i = 0; i < 50 && (await listMessages(ctx.alice, conversationId)).length < 2; i++) await new Promise((r) => setTimeout(r, 20));
+    const stored = await listMessages(ctx.alice, conversationId);
+    expect(stored.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(stored[1].validation).toMatchObject({ interrupted: true });
+    expect(stored[1].content.length).toBeGreaterThan(0);
+    expect(stored[1].content.length).toBeLessThan(full.length / 2); // generation stopped; the unseen remainder was not produced or stored
+    expect(full.startsWith(stored[1].content.trimEnd())).toBe(true);
+  });
+
   it("refuses chat turns on another tenant's document or conversation", async () => {
     setModelOverride({ primary: scriptedModel(() => "x").handle });
     await expect(startChatTurn({ ownerId: ctx.bob, documentId: ctx.aliceDoc.id, question: "termination?" })).rejects.toMatchObject({ code: "NOT_FOUND" });

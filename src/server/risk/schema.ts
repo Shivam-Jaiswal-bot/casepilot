@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ASSESSMENT_BASES, CONFIDENCE_LEVELS, RISK_SEVERITIES } from "@/lib/domain";
+import { MARKET_POSITIONS, SEVERITY_DIRECTIONS, SEVERITY_EXPOSURES } from "./severity-calibration";
 
 /**
  * Structured-output schemas for the risk engine.
@@ -21,8 +22,21 @@ export const evidenceRefSchema = z.object({
   quote: z.string().describe("Short verbatim quotation copied exactly from that source (max ~60 words)"),
 });
 
+export const severityFactorsSchema = z.object({
+  direction: z
+    .enum(SEVERITY_DIRECTIONS)
+    .describe("ADVERSE: disadvantages the reviewing party (or, with no perspective, one party clearly more than the other); BALANCED: reciprocal or neutral; FAVOURABLE: benefits the reviewing party"),
+  exposure: z
+    .enum(SEVERITY_EXPOSURES)
+    .describe("Practical consequence if the risk materialises: SEVERE (uncapped or business-threatening), SIGNIFICANT (material but bounded), MODERATE, MINOR, NONE"),
+  marketPosition: z
+    .enum(MARKET_POSITIONS)
+    .describe("STANDARD: customary for this contract type; DEVIATES: noticeably more onerous than customary; UNUSUAL: rarely seen or clearly off-market"),
+});
+
 export const findingSchema = z.object({
   title: z.string().describe("Concise risk title, e.g. 'Vendor may terminate for convenience on 10 days notice'"),
+  severityFactors: severityFactorsSchema,
   severity: z.enum(RISK_SEVERITIES),
   explanation: z.string().describe("Why this provision was flagged, referring to its actual wording"),
   basis: z.enum(ASSESSMENT_BASES).describe("EXPLICIT if the risk is stated in the text; INTERPRETATION if it follows from reading the text"),

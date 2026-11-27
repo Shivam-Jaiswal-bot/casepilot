@@ -50,3 +50,6 @@ next-env.d.ts
 
 # Evaluation run artifacts (regenerate with `npm run eval`)
 /evals/results/
+
+# Local agent tooling state (claude-flow / ruflo)
+/.claude-flow/

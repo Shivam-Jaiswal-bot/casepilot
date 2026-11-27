@@ -97,6 +97,7 @@ export function toUIMessages(rows: MessageRecord[]): CasePilotUIMessage[] {
           invalidMarkers: m.validation?.invalidMarkers ?? [],
           unsupportedPageRefs: m.validation?.unsupportedPageRefs ?? [],
           abstained: m.validation?.abstained ?? false,
+          interrupted: m.validation?.interrupted ?? false,
           citationCoverage: 0,
         },
       });

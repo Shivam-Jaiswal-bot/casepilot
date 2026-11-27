@@ -33,6 +33,27 @@ describe("validateAnswer", () => {
   });
 });
 
+describe("citation placement", () => {
+  it("credits markers placed after the sentence's final period (regression: measured on gpt-6-luna output)", () => {
+    expect(citationCoverage("Yes. The Provider may terminate the Agreement without cause on 15 days written notice to the Customer. [S2]")).toBe(1);
+    expect(citationCoverage("The liability cap equals three months of fees paid by the Customer. [S1] The Customer must pay all invoices within twenty days. [S2]")).toBe(1);
+    expect(citationCoverage("The liability cap equals three months of fees paid by the Customer. Interest accrues at one and a half percent monthly.")).toBe(0);
+  });
+});
+
+describe("grouped citation markers", () => {
+  it("resolves [S1, S2] and [S1; S2] groups and flags unknown ids inside groups", () => {
+    const v = validateAnswer("Notice is ten days [S1, S2]. Liability is capped [S2; S7].", sources);
+    expect(v.citations.map((c) => c.sourceId)).toEqual(["S1", "S2"]);
+    expect(v.invalidMarkers).toEqual(["S7"]);
+  });
+
+  it("counts grouped markers toward citation coverage and strips them from history", () => {
+    expect(citationCoverage("The Provider may terminate on ten days notice [S1, S2].")).toBe(1);
+    expect(stripMarkers("Term [S1, S2] applies.")).toBe("Term applies.");
+  });
+});
+
 describe("marker helpers", () => {
   it("extracts unique markers in order and page references", () => {
     expect(extractMarkers("a [S2] b [S1] c [S2]")).toEqual(["S2", "S1"]);
